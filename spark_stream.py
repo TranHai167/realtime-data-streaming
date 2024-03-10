@@ -56,7 +56,8 @@ def create_spark_connection():
     try:
         s_conn = SparkSession.builder \
             .appName("SparkDataStreaming") \
-            .config("spark.jars.packages", "com.datastax.spark:spark-cassandra-connector_2.13:3.4.1,""org.apache.spark:spark-sql-kafka-0-10_2.13:3.4.1") \
+            .config("spark.jars.packages", "com.datastax.spark:spark-cassandra-connector_2.13:3.4.1,"
+                    "org.apache.spark:spark-sql-kafka-0-10_2.13:3.4.1") \
             .config("spark.cassandra.connection.host", "localhost") \
             .getOrCreate()
         s_conn.sparkContext.setLogLevel('ERROR')
@@ -82,8 +83,9 @@ def connect_to_kafka(spark_conn):
     try:
         spark_df = spark_conn.readStream \
             .format('kafka') \
-            .option('kafka.bootstrap.servers', 'localhost:9092') \
+            .option('kafka.bootstrap.servers', 'localhost:9092,broker:29092') \
             .option('subscribe', 'my_topic') \
+            .option('group.id', 'unique_group') \
             .option('startingOffsets', 'earliest') \
             .load()
         logging.info('initial dataframe created')
@@ -105,13 +107,11 @@ def create_selection_df_from_kafka(spark_df):
 
     sel = spark_df.selectExpr("CAST(value AS STRING)")\
         .select(from_json(col('value'), schema).alias('data')).select("data.*")
-    print(sel)
+    print('SEL:' + str(sel))
     return sel
 
 if __name__== '__main__':
-    print('Hello')
     spark_conn = create_spark_connection()
-    print('2')
     if spark_conn is not None:
         # connect to kafka with spark connection
         df = connect_to_kafka(spark_conn)
